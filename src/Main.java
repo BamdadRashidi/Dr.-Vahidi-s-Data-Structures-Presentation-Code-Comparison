@@ -5,25 +5,31 @@ public class Main{
     static LinkedList<Integer> linkList = new LinkedList<>();
     static Map<Integer,Integer> map = new HashMap<>();
     static Set<Integer> set = new HashSet<>();
-    static Queue<Integer> queue = new LinkedList<>();
+    static Queue<Integer> queue = new ArrayDeque<>();
     static Stack<Integer> stack = new Stack<>();
     static Random rand = new Random();
 
+    // CHANGE: prevents JVM from optimizing away benchmarked operations
+    static volatile int blackhole = 0;
 
     public static void Insertion(String DSname,Object DS, int value, int key) throws Exception {
         long start = System.nanoTime();
         for(int i = 0; i < 100000; i++) {
             if(DS instanceof Map<?,?> map){
                 ((Map<Integer,Integer>) map).put(key+i,value);
+                blackhole ^= value; // CHANGE
             }
             else if(DS instanceof Stack<?> stack){
                 ((Stack<Integer>) stack).push(value);
+                blackhole ^= value; // CHANGE
             }
             else if(DS instanceof Queue<?> queue){
                 ((Queue<Integer>) queue).offer(value);
+                blackhole ^= value; // CHANGE
             }
             else if(DS instanceof Collection<?> col){
                 ((Collection<Integer>) col).add(value);
+                blackhole ^= value; // CHANGE
             }
             else{
                 throw new Exception("Not a Valid Data Structure");
@@ -33,7 +39,18 @@ public class Main{
         System.out.println("Average Time for " + DSname + ": " + ((end - start)/100000) + " ns per operation");
     }
 
+
+    public static void resetDSes(){
+        arrList.clear();
+        linkList.clear();
+        map.clear();
+        set.clear();
+        queue.clear();
+        stack.clear();
+    }
+
     public static void InserTest() throws Exception {
+        resetDSes(); 
         Insertion("ArrayList",arrList,26,0);
         Insertion("LinkedList",linkList,26,0);
         Insertion("HashMap",map,26,10);
@@ -43,37 +60,47 @@ public class Main{
     }
 
     public static void addsome(){
+        resetDSes();
         for(int i=0;i<100000;i++){
-            arrList.add(rand.nextInt(0,100));
-            linkList.add(rand.nextInt(0,100));
-            map.put(i,rand.nextInt(0,100));
-            set.add(rand.nextInt(0,100));
-            queue.add(rand.nextInt(0,100));
-            stack.add(rand.nextInt(0,100));
+            int r = rand.nextInt(0,100); // CHANGE reuse value
+            arrList.add(r);
+            linkList.add(r);
+            map.put(i,r);
+            set.add(r);
+            queue.add(r);
+            stack.add(r);
         }
     }
 
     public static void Searching(String DSname, Object DS, int index, int key) throws Exception {
+
+        int local = 0; // CHANGE: accumulate results to avoid optimization
+
         long start = System.nanoTime();
         for(int i = 0; i < 100000; i++) {
             if (DS instanceof Map<?,?> map) {
-                ((Map<Integer,Integer>) map).get(key);
+                Integer v = ((Map<Integer,Integer>) map).get(key);
+                if(v != null) local ^= v; // CHANGE
             }
             else if (DS instanceof List<?> list) {
-                ((List<Integer>) list).get(index);
+                local ^= ((List<Integer>) list).get(index); // CHANGE
             }
             else if (DS instanceof Collection<?> col) {
-                ((Collection<Integer>) col).contains(key);
+                if(((Collection<Integer>) col).contains(key)) local++; // CHANGE
             }
             else {
                 throw new Exception("Not a Valid Data Structure");
             }
         }
         long end = System.nanoTime();
+
+        blackhole ^= local; // CHANGE
+
         System.out.println("Average Time for " + DSname + ": " + ((end - start)/100000) + " ns per operation");
     }
 
     public static void searchTest() throws Exception {
+        addsome();
         Searching("ArrayList",arrList,50000,0); // middle of list
         Searching("LinkedList",linkList,50000,0); // middle of list
         Searching("HashMap",map,26,10);
@@ -83,28 +110,45 @@ public class Main{
     }
 
     public static void Removing(String DSname, Object DS, int value, int key) throws Exception {
-        long start = System.nanoTime();
-        for(int i = 0; i < 100000; i++) {
-            if(DS instanceof Map<?,?> map){
-                ((Map<Integer,Integer>) map).remove(key+i);
-            }
-            else if(DS instanceof Stack<?> stack){
-                ((Stack<Integer>) stack).pop();
-            }
-            else if(DS instanceof Queue<?> queue){
-                ((Queue<Integer>) queue).poll();
-            }
-            else if(DS instanceof Collection<?> col){
-                ((Collection<Integer>) col).remove(Integer.valueOf(value));
-            }
+
+    int local = 0; // CHANGE: prevent elimination
+
+    long start = System.nanoTime();
+    for(int i = 0; i < 100000; i++) {
+        if(DS instanceof Map<?,?> map){
+            Integer v = ((Map<Integer,Integer>) map).remove(key+i);
+            if(v != null) local ^= v; // CHANGE
         }
-        long end = System.nanoTime();
-        System.out.println("Average Time for " + DSname + ": " + ((end - start)/100000) + " ns per operation");
+        else if(DS instanceof Stack<?> stack){
+
+            // CHANGE: value-based removal instead of pop()
+            boolean removed = ((Stack<Integer>) stack).remove(Integer.valueOf(value));
+            if(removed) local++;
+
+        }
+        else if(DS instanceof Queue<?> queue){
+
+            // CHANGE: value-based removal instead of poll()
+            boolean removed = ((Queue<Integer>) queue).remove(Integer.valueOf(value));
+            if(removed) local++;
+
+        }
+        else if(DS instanceof Collection<?> col){
+            boolean removed = ((Collection<Integer>) col).remove(Integer.valueOf(value));
+            if(removed) local++; // CHANGE
+        }
     }
+    long end = System.nanoTime();
+
+    blackhole ^= local; // CHANGE
+
+    System.out.println("Average Time for " + DSname + ": " + ((end - start)/100000) + " ns per operation");
+}
+
 
     public static void deletionTest() throws Exception{
+        addsome();
         Removing("ArrayList",arrList,26,0);
-        Removing("LinkedList",linkList,26,0);
         Removing("LinkedList",linkList,26,0);
         Removing("HashMap",map,26,10);
         Removing("HashSet",set,26,10);
@@ -155,3 +199,50 @@ public class Main{
         System.out.println("FINISH");
     }
 }
+
+
+
+// Time Complexity / Speed that the devs experience 95% of the time.
+/*
+    ArrayList:
+        - Adding:    O(1)
+        - Searching: O(N)
+        - Removing:  O(N)
+
+    LinkedList:
+        - Adding:    O(1)
+        - Searching: O(N)
+        - Removing:  O(N)
+
+    HashSet:
+        - Adding:    O(1)
+        - Searching: O(1)
+        - Removing:  O(1)
+
+    HashMap:
+        - Adding:    O(1)
+        - Searching: O(1)
+        - Removing:  O(1)
+
+    Queue:
+        - Adding:    O(1)
+        - Searching: O(N)
+        - Removing:  O(N)
+
+    Stack:
+        - Adding:    O(1)
+        - Searching: O(N)
+        - Removing:  O(N)
+*/
+
+
+// TIPS:
+/*
+    HashMap may be slightly slower than HashSet because it stores key-value pairs instead of only keys.
+*/
+
+// blackhole prevents the JVM compiler from over-optimizing actual test operations since we have a ton of redundancy.
+/* 
+    Java uses (Just-In-Time) compiler which cause it to pay attention to codes and object references first
+    then as it finds redundant code, decides to optimize them. we do the warmup to bring it to the optimized state.
+*/ 
