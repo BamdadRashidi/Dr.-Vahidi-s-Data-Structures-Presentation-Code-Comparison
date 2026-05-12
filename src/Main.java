@@ -8,8 +8,6 @@ public class Main{
     static Queue<Integer> queue = new ArrayDeque<>();
     static Stack<Integer> stack = new Stack<>();
     static Random rand = new Random();
-
-    // CHANGE: prevents JVM from optimizing away benchmarked operations
     static volatile int blackhole = 0;
 
     public static void Insertion(String DSname,Object DS, int value, int key) throws Exception {
@@ -17,19 +15,19 @@ public class Main{
         for(int i = 0; i < 100000; i++) {
             if(DS instanceof Map<?,?> map){
                 ((Map<Integer,Integer>) map).put(key+i,value);
-                blackhole ^= value; // CHANGE
+                blackhole ^= value; 
             }
             else if(DS instanceof Stack<?> stack){
                 ((Stack<Integer>) stack).push(value);
-                blackhole ^= value; // CHANGE
+                blackhole ^= value; 
             }
             else if(DS instanceof Queue<?> queue){
                 ((Queue<Integer>) queue).offer(value);
-                blackhole ^= value; // CHANGE
+                blackhole ^= value;
             }
             else if(DS instanceof Collection<?> col){
                 ((Collection<Integer>) col).add(value);
-                blackhole ^= value; // CHANGE
+                blackhole ^= value;
             }
             else{
                 throw new Exception("Not a Valid Data Structure");
@@ -62,7 +60,7 @@ public class Main{
     public static void addsome(){
         resetDSes();
         for(int i=0;i<100000;i++){
-            int r = rand.nextInt(0,100); // CHANGE reuse value
+            int r = rand.nextInt(0,100);
             arrList.add(r);
             linkList.add(r);
             map.put(i,r);
@@ -73,20 +71,18 @@ public class Main{
     }
 
     public static void Searching(String DSname, Object DS, int index, int key) throws Exception {
-
-        int local = 0; // CHANGE: accumulate results to avoid optimization
-
+        int local = 0;
         long start = System.nanoTime();
         for(int i = 0; i < 100000; i++) {
             if (DS instanceof Map<?,?> map) {
                 Integer v = ((Map<Integer,Integer>) map).get(key);
-                if(v != null) local ^= v; // CHANGE
+                if(v != null) local ^= v;
             }
             else if (DS instanceof List<?> list) {
-                local ^= ((List<Integer>) list).get(index); // CHANGE
+                local ^= ((List<Integer>) list).get(index);
             }
             else if (DS instanceof Collection<?> col) {
-                if(((Collection<Integer>) col).contains(key)) local++; // CHANGE
+                if(((Collection<Integer>) col).contains(key)) local++;
             }
             else {
                 throw new Exception("Not a Valid Data Structure");
@@ -94,7 +90,7 @@ public class Main{
         }
         long end = System.nanoTime();
 
-        blackhole ^= local; // CHANGE
+        blackhole ^= local;
 
         System.out.println("Average Time for " + DSname + ": " + ((end - start)/100000) + " ns per operation");
     }
@@ -111,37 +107,30 @@ public class Main{
 
     public static void Removing(String DSname, Object DS, int value, int key) throws Exception {
 
-    int local = 0; // CHANGE: prevent elimination
-
+    int local = 0;
     long start = System.nanoTime();
     for(int i = 0; i < 100000; i++) {
         if(DS instanceof Map<?,?> map){
             Integer v = ((Map<Integer,Integer>) map).remove(key+i);
-            if(v != null) local ^= v; // CHANGE
+            if(v != null) local ^= v;
         }
         else if(DS instanceof Stack<?> stack){
-
-            // CHANGE: value-based removal instead of pop()
             boolean removed = ((Stack<Integer>) stack).remove(Integer.valueOf(value));
             if(removed) local++;
 
         }
         else if(DS instanceof Queue<?> queue){
-
-            // CHANGE: value-based removal instead of poll()
             boolean removed = ((Queue<Integer>) queue).remove(Integer.valueOf(value));
             if(removed) local++;
 
         }
         else if(DS instanceof Collection<?> col){
             boolean removed = ((Collection<Integer>) col).remove(Integer.valueOf(value));
-            if(removed) local++; // CHANGE
+            if(removed) local++;
         }
     }
     long end = System.nanoTime();
-
-    blackhole ^= local; // CHANGE
-
+    blackhole ^= local;
     System.out.println("Average Time for " + DSname + ": " + ((end - start)/100000) + " ns per operation");
 }
 
